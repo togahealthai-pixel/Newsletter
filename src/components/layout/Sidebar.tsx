@@ -60,7 +60,8 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
       >
         {/* Mobile header with close button */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-          <span className="text-xl font-bold text-indigo-600 tracking-tight">NewsletterHub</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Toga Health" style={{ height: "36px", width: "auto" }} />
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -98,7 +99,8 @@ function SidebarContent({
     <>
       {/* Logo — desktop only */}
       <div className="px-6 py-5 border-b border-gray-200 hidden lg:block">
-        <span className="text-xl font-bold text-indigo-600 tracking-tight">NewsletterHub</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Toga Health" style={{ height: "36px", width: "auto" }} />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -151,9 +153,6 @@ function SidebarContent({
         })}
       </nav>
 
-      <div className="px-4 py-4 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Powered by n8n</p>
-      </div>
     </>
   );
 }
