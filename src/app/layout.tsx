@@ -20,11 +20,11 @@ export const metadata: Metadata = {
   description: "Manage and generate newsletters",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/logo.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/logo.png?v=2", type: "image/png", sizes: "512x512" },
     ],
-    apple: { url: "/logo.png", sizes: "512x512" },
-    shortcut: "/favicon.ico",
+    apple: { url: "/logo.png?v=2", sizes: "512x512" },
+    shortcut: "/favicon.ico?v=2",
   },
 };
 
