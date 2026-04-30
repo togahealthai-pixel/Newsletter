@@ -18,14 +18,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Toga Health Newsletter",
   description: "Manage and generate newsletters",
-  icons: {
-    icon: [
-      { url: "/favicon.ico?v=2", sizes: "any" },
-      { url: "/logo.png?v=2", type: "image/png", sizes: "512x512" },
-    ],
-    apple: { url: "/logo.png?v=2", sizes: "512x512" },
-    shortcut: "/favicon.ico?v=2",
-  },
 };
 
 export default function RootLayout({
