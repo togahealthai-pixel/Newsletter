@@ -44,8 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Logo + copyright */}
             <div className="flex flex-col gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="Toga Health" style={{ height: "36px", width: "auto", maxWidth: "120px" }} />
+              <span className="text-lg font-bold text-gray-800 tracking-tight">Toga Health</span>
               <p className="text-xs text-gray-400 mt-1">
                 © {new Date().getFullYear()} Toga Health. All rights reserved.
               </p>
