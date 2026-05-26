@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useCampaigns, Campaign } from "@/context/CampaignContext";
 
 const SUBSCRIBER_OPTIONS = [
-  "cosmic_surgery_leads",
-  "dental_treatment_leads",
-  "eye_treatment_leads",
-  "hair_transplant_leads",
-  "ivf_fertility_leads",
+  "table1",
+  "table2",
+  "table3",
+  "table4",
+  "table5",
+  "table6",
 ];
 const DAILY_LIMIT_OPTIONS = [30, 40, 50, 60, 70, 80, 90, 100];
 
