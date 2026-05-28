@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCampaigns, Campaign } from "@/context/CampaignContext";
 
 const SUBSCRIBER_OPTIONS = [
@@ -26,6 +26,14 @@ export default function CreateCampaign() {
   const [errorMessage, setErrorMessage] = useState("");
   const [lastCampaignId, setLastCampaignId] = useState("");
   const [copiedId, setCopiedId] = useState("");
+  const [leadCounts, setLeadCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch("/api/supabase/lead-counts")
+      .then((r) => r.json())
+      .then((data) => { if (!data.error) setLeadCounts(data); })
+      .catch(() => {});
+  }, []);
 
   const canSubmit =
     templateId.trim() && campaignName.trim() && subscribers && dailyLimit !== "";
@@ -150,13 +158,27 @@ export default function CreateCampaign() {
               >
                 <option value="" disabled>Select subscriber list</option>
                 {SUBSCRIBER_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt} value={opt}>
+                    {opt}{leadCounts[opt] !== undefined ? ` — ${leadCounts[opt].toLocaleString()} leads` : ""}
+                  </option>
                 ))}
               </select>
               <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
+
+            {/* Lead count badge shown after selection */}
+            {subscribers && leadCounts[subscribers] !== undefined && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg">
+                <svg className="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm text-indigo-700 font-medium">
+                  {leadCounts[subscribers].toLocaleString()} leads in <span className="font-bold">{subscribers}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Daily Limit */}
