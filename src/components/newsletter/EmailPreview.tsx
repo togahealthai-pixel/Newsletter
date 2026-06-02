@@ -41,6 +41,7 @@ export default function EmailPreview({ data }: { data: NewsletterData }) {
   const mainStory = data.mainStory ? parseMainStory(data.mainStory) : null;
   const keyInsights = data.keyInsights ? parseBullets(data.keyInsights) : null;
   const industryUpdate = data.industryUpdate ? parseBullets(data.industryUpdate) : null;
+  const headerText = data.headerTitle || data.subjectLine || "Newsletter";
 
   return (
     <div className="font-sans text-gray-800 bg-gray-100 rounded-xl overflow-hidden">
@@ -65,15 +66,13 @@ export default function EmailPreview({ data }: { data: NewsletterData }) {
       <div className="bg-gray-100 px-4 py-6">
         <div className="max-w-xl mx-auto bg-white rounded-2xl overflow-hidden shadow-sm">
 
-          {/* Header banner */}
-          {data.headerTitle && (
-            <div className="bg-indigo-600 px-8 py-8 text-center">
-              <p className="text-indigo-200 text-xs uppercase tracking-widest mb-2">Newsletter</p>
-              <h1 className="text-white text-xl font-bold leading-snug">
-                {formatText(data.headerTitle)}
-              </h1>
-            </div>
-          )}
+          {/* Header banner — always shows */}
+          <div className="bg-indigo-600 px-8 py-8 text-center">
+            <p className="text-indigo-200 text-xs uppercase tracking-widest mb-2">Newsletter</p>
+            <h1 className="text-white text-xl font-bold leading-snug">
+              {formatText(headerText)}
+            </h1>
+          </div>
 
           <div className="px-8 py-6 space-y-6">
 

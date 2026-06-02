@@ -24,11 +24,28 @@ function formatText(text: string) {
   return text.replace(/\\n/g, "\n").trim();
 }
 
+function normalizeKeys(data: Record<string, unknown>): NewsletterData {
+  return {
+    subjectLine:    String(data.subjectLine    || data.subject_line    || ""),
+    preheader:      String(data.preheader      || ""),
+    headerTitle:    String(data.headerTitle    || data.header_title    || ""),
+    intro:          String(data.intro          || ""),
+    mainStory:      String(data.mainStory      || data.main_story      || ""),
+    keyInsights:    String(data.keyInsights    || data.key_insights    || ""),
+    industryUpdate: String(data.industryUpdate || data.industry_update || ""),
+    proTip:         String(data.proTip         || data.pro_tip         || ""),
+    callToAction:   String(data.callToAction   || data.call_to_action  || ""),
+    footerNote:     String(data.footerNote     || data.footer_note     || ""),
+  };
+}
+
 function parseResponse(raw: unknown): NewsletterData | null {
   const data = Array.isArray(raw) ? raw[0] : raw;
   if (!data || typeof data !== "object") return null;
-  const hasStructuredFields = SECTIONS.some(({ key }) => key in (data as object));
-  return hasStructuredFields ? (data as NewsletterData) : null;
+  const d = data as Record<string, unknown>;
+  const hasFields = SECTIONS.some(({ key }) => key in d)
+    || "subject_line" in d || "header_title" in d || "main_story" in d;
+  return hasFields ? normalizeKeys(d) : null;
 }
 
 export default function GenerateNewsletter() {
@@ -42,6 +59,7 @@ export default function GenerateNewsletter() {
     errorMessage, setErrorMessage,
     retryPrompt, setRetryPrompt,
     templateId, setTemplateId,
+    supabaseRowId, setSupabaseRowId,
     reset,
   } = useNewsletter();
 
@@ -49,21 +67,25 @@ export default function GenerateNewsletter() {
   const [copied, setCopied] = useState(false);
 
   const applyResponse = (raw: unknown) => {
+    const data = Array.isArray(raw) ? raw[0] : raw as Record<string, unknown>;
+    // Capture the Supabase row id if present
+    if (data && typeof data === "object" && "id" in data && data.id) {
+      setSupabaseRowId(Number(data.id));
+    }
     const structured = parseResponse(raw);
     if (structured) {
       setNewsletter(structured);
       setRawFallback("");
     } else {
-      const data = Array.isArray(raw) ? raw[0] : raw as NewsletterData;
-      const fallback = data?.output || data?.content || data?.newsletter;
-      setRawFallback(fallback ? formatText(fallback) : JSON.stringify(raw, null, 2));
+      const fallback = (data as NewsletterData)?.output || (data as NewsletterData)?.content || (data as NewsletterData)?.newsletter;
+      setRawFallback(fallback ? formatText(String(fallback)) : JSON.stringify(raw, null, 2));
       setNewsletter(null);
     }
   };
 
-  const saveToHistory = (nl: NewsletterData | null, rb: string, tid: string, st: "generated" | "proceeded") => {
+  const saveToHistory = (nl: NewsletterData | null, rb: string, tid: string, st: "generated" | "proceeded", supabaseId?: string) => {
     addEntry({
-      id: Date.now().toString(),
+      id: supabaseId || Date.now().toString(),
       service: selectedService,
       topic: topic.trim(),
       newsletter: nl,
@@ -112,8 +134,10 @@ export default function GenerateNewsletter() {
       if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
       const raw = await res.json();
       applyResponse(raw);
+      const d = Array.isArray(raw) ? raw[0] : raw as Record<string, unknown>;
+      const rowId = d?.id ? String(d.id) : undefined;
       const structured = parseResponse(raw);
-      saveToHistory(structured, structured ? "" : JSON.stringify(raw, null, 2), "", "generated");
+      saveToHistory(structured, structured ? "" : JSON.stringify(raw, null, 2), "", "generated", rowId);
       setStatus("success");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Something went wrong");
@@ -145,6 +169,7 @@ export default function GenerateNewsletter() {
           topic: topic.trim(),
           retryPrompt: retryPrompt.trim(),
           previousContent: newsletter,
+          supabaseRowId,
         }),
       });
 
@@ -202,65 +227,71 @@ export default function GenerateNewsletter() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Generate Newsletter</h1>
         <p className="text-gray-500 mt-1">Select a service and enter a topic to generate your newsletter.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: inputs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Service <span className="text-red-500">*</span>
+      {/* Top: inputs card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* Left: service grid */}
+          <div className="lg:w-1/2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              Select Service <span className="text-red-400">*</span>
             </label>
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {services.map((service) => (
                 <button
                   key={service}
                   type="button"
                   onClick={() => setSelectedService(service)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all text-left ${
                     selectedService === service
-                      ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                      : "border-gray-200 text-gray-700 hover:border-indigo-300 hover:bg-gray-50"
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                      : "border-gray-200 text-gray-600 hover:border-indigo-300 hover:bg-gray-50"
                   }`}
                 >
-                  <span className={`inline-block w-2 h-2 rounded-full mr-2 ${selectedService === service ? "bg-indigo-600" : "bg-gray-300"}`} />
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${selectedService === service ? "bg-indigo-600" : "bg-gray-300"}`} />
                   {service}
                 </button>
               ))}
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Newsletter Topic <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Benefits of Hair Transplant in Turkey..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-
-          <button
-            onClick={handleGenerate}
-            disabled={!selectedService || !topic.trim() || isLoading}
-            className="w-full py-3 px-4 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-          >
+          {/* Right: topic + button */}
+          <div className="lg:w-1/2 flex flex-col justify-between gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Newsletter Topic <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Benefits of Hair Transplant in Turkey..."
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-colors"
+              />
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={!selectedService || !topic.trim() || isLoading}
+              className="w-full py-3 px-4 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
             {status === "loading" ? (
               <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Generating...</>
             ) : (
               <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> Generate Newsletter</>
             )}
-          </button>
-        </div>
+            </button>
+          </div>
 
-        {/* Right: output */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-4">
+        </div>
+      </div>
+
+      {/* Bottom: generated content */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">Generated Content</h2>
             {hasContent && (
@@ -278,7 +309,7 @@ export default function GenerateNewsletter() {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto min-h-64 max-h-[60vh]">
+          <div className="flex-1 overflow-auto min-h-64">
             {status === "idle" && (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16">
                 <svg className="w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -409,7 +440,6 @@ export default function GenerateNewsletter() {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }

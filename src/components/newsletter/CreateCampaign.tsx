@@ -16,7 +16,7 @@ const DAILY_LIMIT_OPTIONS = [30, 40, 50, 60, 70, 80, 90, 100];
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function CreateCampaign() {
-  const { history, addCampaign, clearHistory } = useCampaigns();
+  const { history, addCampaign, deleteCampaign, clearHistory } = useCampaigns();
 
   const [templateId, setTemplateId] = useState("");
   const [campaignName, setCampaignName] = useState("");
@@ -79,7 +79,7 @@ export default function CreateCampaign() {
         createdAt: new Date().toISOString(),
       };
 
-      addCampaign(campaign);
+      await addCampaign(campaign);
       setLastCampaignId(campaignId);
       setStatus("success");
 
@@ -306,11 +306,34 @@ export default function CreateCampaign() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {history.map((c, i) => (
+                {history.map((c, i) => {
+                  const displayName = c.campaignName || c.headerTitle || "Untitled Newsletter";
+                  const isCampaign = !!c.campaignName;
+                  return (
                   <div key={i} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">{c.campaignName}</p>
-                      <span className="shrink-0 text-xs text-gray-400">{formatDate(c.createdAt)}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${isCampaign ? "bg-indigo-100 text-indigo-600" : "bg-gray-200 text-gray-500"}`}>
+                            {isCampaign ? "Campaign" : "Content only"}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 leading-tight truncate">{displayName}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-gray-400">{formatDate(c.createdAt)}</span>
+                        {c.id && (
+                          <button
+                            onClick={() => deleteCampaign(c.id!)}
+                            className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-3">
@@ -352,7 +375,7 @@ export default function CreateCampaign() {
                       </div>
                     )}
                   </div>
-                ))}
+                );})}
               </div>
             )}
           </div>

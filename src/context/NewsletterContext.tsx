@@ -30,6 +30,7 @@ interface NewsletterState {
   errorMessage: string;
   retryPrompt: string;
   templateId: string;
+  supabaseRowId: number | null;
   setSelectedService: (v: string) => void;
   setTopic: (v: string) => void;
   setStatus: (v: Status) => void;
@@ -38,6 +39,7 @@ interface NewsletterState {
   setErrorMessage: (v: string) => void;
   setRetryPrompt: (v: string) => void;
   setTemplateId: (v: string) => void;
+  setSupabaseRowId: (v: number | null) => void;
   reset: () => void;
 }
 
@@ -52,6 +54,7 @@ export function NewsletterProvider({ children }: { children: ReactNode }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [retryPrompt, setRetryPrompt] = useState("");
   const [templateId, setTemplateId] = useState("");
+  const [supabaseRowId, setSupabaseRowId] = useState<number | null>(null);
 
   const reset = () => {
     setStatus("idle");
@@ -62,14 +65,16 @@ export function NewsletterProvider({ children }: { children: ReactNode }) {
     setRetryPrompt("");
     setTemplateId("");
     setErrorMessage("");
+    setSupabaseRowId(null);
   };
 
   return (
     <NewsletterContext.Provider value={{
       selectedService, topic, status, newsletter, rawFallback,
-      errorMessage, retryPrompt, templateId,
+      errorMessage, retryPrompt, templateId, supabaseRowId,
       setSelectedService, setTopic, setStatus, setNewsletter,
       setRawFallback, setErrorMessage, setRetryPrompt, setTemplateId,
+      setSupabaseRowId,
       reset,
     }}>
       {children}
