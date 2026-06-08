@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; textColor: string }> = {
-  lifted:    { label: "Lifted",     color: "#22c55e", bg: "bg-emerald-50", border: "border-emerald-100", textColor: "text-emerald-700" },
-  not_lifted:{ label: "Not Lifted", color: "#f87171", bg: "bg-red-50",     border: "border-red-100",     textColor: "text-red-600"     },
-  inactivity:{ label: "Inactivity", color: "#f59e0b", bg: "bg-amber-50",   border: "border-amber-100",   textColor: "text-amber-700"   },
-  pending:   { label: "Pending",    color: "#94a3b8", bg: "bg-gray-50",    border: "border-gray-200",    textColor: "text-gray-600"    },
+  lifted:               { label: "Lifted",            color: "#22c55e", bg: "bg-emerald-50", border: "border-emerald-100", textColor: "text-emerald-700" },
+  not_lifted:           { label: "Not Lifted",         color: "#f87171", bg: "bg-red-50",     border: "border-red-100",     textColor: "text-red-600"     },
+  inactivity:           { label: "Inactivity",         color: "#f59e0b", bg: "bg-amber-50",   border: "border-amber-100",   textColor: "text-amber-700"   },
+  max_duration_reached: { label: "Max Duration",       color: "#8b5cf6", bg: "bg-violet-50",  border: "border-violet-100",  textColor: "text-violet-700"  },
+  pending:              { label: "Pending",             color: "#94a3b8", bg: "bg-gray-50",    border: "border-gray-200",    textColor: "text-gray-600"    },
 };
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -31,6 +32,15 @@ const WEBHOOKS = {
   statusChangeToNull: process.env.NEXT_PUBLIC_VOICE_ALLSTATUS_TO_NULL_URL || "",
 };
 
+function formatDisplayDate(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 export default function VoiceDashboard() {
   const [stats, setStats] = useState<VoiceStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,18 +49,7 @@ export default function VoiceDashboard() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    fetch("/api/supabase/voice-stats")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else setStats(data);
-      })
-      .catch(() => setError("Failed to load voice stats"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleRefresh = () => {
+  const loadStats = () => {
     setLoading(true);
     setError("");
     fetch("/api/supabase/voice-stats")
@@ -62,6 +61,10 @@ export default function VoiceDashboard() {
       .catch(() => setError("Failed to load voice stats"))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => { loadStats(); }, []);
+
+  const handleRefresh = () => loadStats();
 
   if (loading) {
     return (
@@ -88,9 +91,12 @@ export default function VoiceDashboard() {
     );
   }
 
-  const statusPieData = Object.entries(stats?.statusCounts || {})
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ name: STATUS_CONFIG[k]?.label || k, value: v, fill: STATUS_CONFIG[k]?.color || "#94a3b8" }));
+  // Exclude pending (null status) from pie — only show rows that were actually called
+  const STATUS_PIE_KEYS = ["lifted", "not_lifted", "inactivity", "max_duration_reached"];
+  const statusPieData = STATUS_PIE_KEYS
+    .map((k) => ({ key: k, value: stats?.statusCounts[k] ?? 0 }))
+    .filter(({ value }) => value > 0)
+    .map(({ key, value }) => ({ name: STATUS_CONFIG[key].label, value, fill: STATUS_CONFIG[key].color }));
 
   const sentimentPieData = Object.entries(stats?.sentimentCounts || {})
     .filter(([k, v]) => k !== "Not Called" && v > 0)
@@ -137,7 +143,7 @@ export default function VoiceDashboard() {
       </div>
 
       {/* Scorecards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {/* Total */}
         <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -192,6 +198,19 @@ export default function VoiceDashboard() {
           </div>
           <p className="text-3xl font-bold text-amber-700">{stats?.statusCounts.inactivity ?? 0}</p>
         </div>
+
+        {/* Max Duration */}
+        <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Max Duration</p>
+            <span className="bg-violet-100 p-2 rounded-xl">
+              <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+          </div>
+          <p className="text-3xl font-bold text-violet-700">{stats?.statusCounts.max_duration_reached ?? 0}</p>
+        </div>
       </div>
 
       {/* Pie charts */}
@@ -207,7 +226,8 @@ export default function VoiceDashboard() {
           </ResponsiveContainer>
           <div className="space-y-2 mt-3">
             {statusPieData.map((item) => {
-              const pct = stats?.total ? Math.round((item.value / stats.total) * 100) : 0;
+              const calledTotal = statusPieData.reduce((s, i) => s + i.value, 0);
+              const pct = calledTotal > 0 ? Math.round((item.value / calledTotal) * 100) : 0;
               return (
                 <div key={item.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
@@ -256,7 +276,10 @@ export default function VoiceDashboard() {
       {/* Recent calls table */}
       {(stats?.recentCalls?.length ?? 0) > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <p className="text-sm font-semibold text-gray-700 mb-4">Recent Calls</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-gray-700">Recent Calls</p>
+            <span className="text-xs text-gray-400">Latest 5</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -264,7 +287,8 @@ export default function VoiceDashboard() {
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Name</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Number</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Status</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Sentiment</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Sentiment</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -278,19 +302,20 @@ export default function VoiceDashboard() {
                       <td className="py-3 pr-4 font-medium text-gray-800">{String(call.Name || "—")}</td>
                       <td className="py-3 pr-4 text-gray-500 font-mono text-xs">{String(call.number || "—")}</td>
                       <td className="py-3 pr-4">
-                        {cfg ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.textColor}`}>
-                            {cfg.label}
-                          </span>
-                        ) : <span className="text-gray-400">—</span>}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${(cfg || STATUS_CONFIG.pending).bg} ${(cfg || STATUS_CONFIG.pending).textColor}`}>
+                          {(cfg || STATUS_CONFIG.pending).label}
+                        </span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 pr-4">
                         {call.user_sentiment ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: sentColor }}>
                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sentColor }} />
                             {sentiment}
                           </span>
                         ) : <span className="text-gray-400 text-xs">—</span>}
+                      </td>
+                      <td className="py-3 text-xs text-gray-500">
+                        {call.created_at ? formatDisplayDate(String(call.created_at)) : "—"}
                       </td>
                     </tr>
                   );

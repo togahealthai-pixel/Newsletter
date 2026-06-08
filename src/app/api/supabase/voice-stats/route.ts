@@ -21,10 +21,13 @@ export async function GET() {
 
   while (true) {
     const res = await fetch(
-      `${url}/rest/v1/phonenumber?select=id,status,user_sentiment,Name,number,summary,recording_url&limit=${limit}&offset=${offset}&order=id.desc`,
+      `${url}/rest/v1/phonenumber?select=*&limit=${limit}&offset=${offset}&order=id.desc`,
       { headers }
     );
-    const batch: Record<string, unknown>[] = await res.json();
+    const batch = await res.json();
+    if (!res.ok) {
+      return NextResponse.json({ error: typeof batch === "object" ? JSON.stringify(batch) : String(batch) }, { status: 500 });
+    }
     if (!Array.isArray(batch) || batch.length === 0) break;
     allRows.push(...batch);
     if (batch.length < limit) break;
@@ -36,6 +39,7 @@ export async function GET() {
     lifted: 0,
     not_lifted: 0,
     inactivity: 0,
+    max_duration_reached: 0,
     pending: 0,
   };
   const sentimentCounts: Record<string, number> = {};
@@ -45,16 +49,20 @@ export async function GET() {
     if (s === "lifted") statusCounts.lifted++;
     else if (s === "not_lifted") statusCounts.not_lifted++;
     else if (s === "inactivity") statusCounts.inactivity++;
+    else if (s === "max_duration_reached") statusCounts.max_duration_reached++;
     else statusCounts.pending++;
 
     const sen = String(row.user_sentiment || "Not Called");
     sentimentCounts[sen] = (sentimentCounts[sen] || 0) + 1;
   }
 
-  // Recent calls (lifted or has summary)
-  const recentCalls = allRows
-    .filter((r) => r.status && r.status !== null)
-    .slice(0, 20);
+  // Latest 5 rows sorted by created_at desc (falls back to id desc)
+  const sorted = [...allRows].sort((a, b) => {
+    const ta = a.created_at ? new Date(String(a.created_at)).getTime() : (Number(a.id) || 0);
+    const tb = b.created_at ? new Date(String(b.created_at)).getTime() : (Number(b.id) || 0);
+    return tb - ta;
+  });
+  const recentCalls = sorted.slice(0, 5);
 
   return NextResponse.json({
     total: allRows.length,
